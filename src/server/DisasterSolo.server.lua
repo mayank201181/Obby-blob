@@ -245,6 +245,21 @@ local function endRound(player, result, disasterName)
 	RoundEndedRemote:FireClient(player, result, disasterName)
 end
 
+-- Hook a round's death watcher onto a humanoid. Called at round start and
+-- again from onCharacterAdded if the player somehow respawns mid-round, so
+-- the round always ends when the CURRENT body dies.
+local function watchHumanoid(player, roundId, humanoid, disasterName)
+	local conn
+	conn = humanoid.Died:Connect(function()
+		if conn then
+			conn:Disconnect()
+		end
+		if roundIsCurrent(player, roundId) then
+			endRound(player, "died", disasterName)
+		end
+	end)
+end
+
 local function startRound(player)
 	local s = state[player]
 	if not s then
@@ -259,6 +274,23 @@ local function startRound(player)
 
 	clearHazards(player)
 
+	-- A fresh round needs a living character. Right after a death the old
+	-- character is a corpse whose Died signal already fired, so starting a
+	-- round with it left "Play Again" running a round nobody could play.
+	-- Respawning here fixes that -- and makes Play Again instant instead of
+	-- waiting out Roblox's respawn timer.
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not (character and character.Parent and humanoid and humanoid.Health > 0) then
+		player:LoadCharacter()
+		character = player.Character or player.CharacterAdded:Wait()
+		character:WaitForChild("HumanoidRootPart")
+		humanoid = character:WaitForChild("Humanoid")
+	end
+	if state[player] ~= s or s.roundId ~= roundId then
+		return -- player left or another round superseded this one while respawning
+	end
+
 	local origin = Vector3.new(
 		s.arena.PrimaryPart.Position.X,
 		GameConfig.SpawnHeight,
@@ -268,6 +300,7 @@ local function startRound(player)
 
 	local disasterName = GameConfig.Disasters[math.random(1, #GameConfig.Disasters)]
 	local disaster = Disasters[disasterName]
+	s.disasterName = disasterName
 
 	RoundStartedRemote:FireClient(player, disasterName)
 
@@ -275,20 +308,7 @@ local function startRound(player)
 		disaster(player, origin, s.floorTop, roundId)
 	end
 
-	-- Watch the humanoid for death.
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		local conn
-		conn = humanoid.Died:Connect(function()
-			if conn then
-				conn:Disconnect()
-			end
-			if roundIsCurrent(player, roundId) then
-				endRound(player, "died", disasterName)
-			end
-		end)
-	end
+	watchHumanoid(player, roundId, humanoid, disasterName)
 
 	-- Survival timer.
 	task.spawn(function()
@@ -314,6 +334,10 @@ local function onCharacterAdded(player, character)
 	if not s then
 		return
 	end
+	-- While the player is off on an obby course, ObbySolo owns respawns.
+	if player:GetAttribute(GameConfig.ModeAttribute) == "Obby" then
+		return
+	end
 	-- Land the fresh character on their arena; wait for the root part first.
 	character:WaitForChild("HumanoidRootPart")
 	local origin = Vector3.new(
@@ -322,6 +346,13 @@ local function onCharacterAdded(player, character)
 		s.arena.PrimaryPart.Position.Z
 	)
 	teleportToArena(player, origin, s.floorTop)
+
+	-- If a round is somehow running (e.g. an unexpected respawn mid-round),
+	-- make sure the new body's death still ends it.
+	if s.active then
+		local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid")
+		watchHumanoid(player, s.roundId, humanoid, s.disasterName)
+	end
 end
 
 local function onPlayerAdded(player)
@@ -372,6 +403,10 @@ end
 PlayAgainRemote.OnServerEvent:Connect(function(player)
 	local s = state[player]
 	if not s then
+		return
+	end
+	-- Not ours while the player is on an obby course.
+	if player:GetAttribute(GameConfig.ModeAttribute) == "Obby" then
 		return
 	end
 	-- Ignore if a round is already running so a double-tap can't stack rounds.

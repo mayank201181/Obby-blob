@@ -1,19 +1,24 @@
-# Obby-blob — Solo Disaster
+# Obby-blob
 
-A single-player Roblox disaster-survival mode. You spawn on a private arena, a
-random disaster strikes, and you try to survive the timer. When the round ends
-— whether you survive or get wiped out — a **Play Again** button appears so you
-can jump straight into another round on your own.
+A single-player Roblox game with four solo modes. Pick a mode from the menu:
 
-## How it works
+- **Solo Disaster** — you spawn on a private arena, a random disaster
+  (`Flood`, `FallingBlobs`, or `Earthquake`) strikes, and you try to survive
+  the timer. When the round ends — survive or get wiped out — a **Play
+  Again** button instantly starts a fresh round (it respawns you first, so it
+  always works even right after you die).
+- **Easy Obby / Hard Obby** — private floating courses with green checkpoint
+  pads, red platforms that vanish shortly after you step on them, and a gold
+  finish pad at the end.
+- **Endless Obby** — the course grows every time you reach the newest
+  checkpoint, and each new segment is a little harder.
 
-- **Solo:** every player gets their own private arena and their own round, so
-  pressing *Play Again* restarts *your* round instantly without waiting on
-  anyone else.
-- **Play Again:** the round-end menu shows a big button that starts a fresh
-  round. It says *Play* the first time and *Play Again* after every round.
-- **Disasters:** each round randomly picks one of `Flood`, `FallingBlobs`, or
-  `Earthquake`.
+## Obby controls
+
+- **Restart** button (or the **R** key) — instantly brings back every red
+  platform and teleports you to the checkpoint you last touched, so a
+  vanished red platform can never leave you stranded.
+- **Quit to Menu** — leave the course and return to the mode menu.
 
 ## Project layout
 
@@ -22,8 +27,10 @@ This is a [Rojo](https://rojo.space/) project.
 ```
 default.project.json                 Rojo mapping
 src/shared/GameConfig.lua            Shared config + remote names (ReplicatedStorage)
-src/server/DisasterSolo.server.lua   Round logic, arenas, disasters, Play Again
-src/client/PlayAgainGui.client.lua   Round-end menu + Play Again button
+src/server/DisasterSolo.server.lua   Disaster arenas, rounds, Play Again
+src/server/ObbySolo.server.lua       Obby courses, checkpoints, red platforms, Restart
+src/client/SoloMenu.client.lua       Mode menu + round-over / course-complete panel
+src/client/ObbyHud.client.lua        In-course HUD with Restart / Quit
 ```
 
 ## Running it
@@ -32,5 +39,7 @@ src/client/PlayAgainGui.client.lua   Round-end menu + Play Again button
 2. From the project root: `rojo serve`
 3. Connect from Roblox Studio with the Rojo plugin and press Play.
 
-Tune the round in `src/shared/GameConfig.lua` (`RoundDuration`, `ArenaSize`,
-`SpawnHeight`, and the `Disasters` list).
+Tune everything in `src/shared/GameConfig.lua` — disaster round settings
+(`RoundDuration`, `ArenaSize`, …) and per-mode obby settings under
+`GameConfig.Obby.Modes` (platform sizes, gaps, red-platform chance, vanish
+delay, and the Endless difficulty ramp).
