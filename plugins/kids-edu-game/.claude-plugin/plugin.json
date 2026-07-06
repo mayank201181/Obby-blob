@@ -1,0 +1,7 @@
+{
+  "name": "kids-edu-game",
+  "description": "Build kid-friendly educational Roblox (Luau) games with a solo Play Again loop and drop-in patterns for embedding maths concepts (addition, subtraction, times tables, fractions, number sense).",
+  "version": "1.0.0",
+  "author": { "name": "mayank201181" },
+  "keywords": ["roblox", "luau", "education", "kids", "maths", "game", "rojo"]
+}
