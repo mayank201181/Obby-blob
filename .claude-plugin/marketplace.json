@@ -1,0 +1,15 @@
+{
+  "name": "obby-blob",
+  "owner": { "name": "mayank201181" },
+  "metadata": {
+    "description": "Marketplace for reusable game-building skills from the Obby-blob project."
+  },
+  "plugins": [
+    {
+      "name": "kids-edu-game",
+      "source": "./plugins/kids-edu-game",
+      "description": "Build kid-friendly educational Roblox games with a solo Play Again loop and embedded maths concepts.",
+      "version": "1.0.0"
+    }
+  ]
+}
