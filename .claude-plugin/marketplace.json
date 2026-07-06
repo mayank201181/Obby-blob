@@ -1,0 +1,17 @@
+{
+  "name": "obby-blob",
+  "owner": {
+    "name": "mayank201181"
+  },
+  "metadata": {
+    "description": "Plugin marketplace for Obby-blob: kid-friendly educational Roblox game tooling."
+  },
+  "plugins": [
+    {
+      "name": "kids-edu-game",
+      "source": "./plugins/kids-edu-game",
+      "description": "Build a kid-friendly educational Roblox (Luau) game with a solo replay loop, per-player arenas, a Play Again menu, and drop-in patterns for gating gameplay behind maths problems.",
+      "category": "education"
+    }
+  ]
+}

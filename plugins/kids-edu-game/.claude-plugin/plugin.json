@@ -1,0 +1,9 @@
+{
+  "name": "kids-edu-game",
+  "version": "0.1.0",
+  "description": "Build a kid-friendly educational Roblox (Luau) game with a solo replay loop, per-player arenas, a Play Again menu, and drop-in patterns for gating gameplay behind maths problems.",
+  "author": {
+    "name": "mayank201181"
+  },
+  "keywords": ["roblox", "luau", "rojo", "education", "kids", "maths", "game"]
+}
