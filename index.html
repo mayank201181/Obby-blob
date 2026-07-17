@@ -1,0 +1,209 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Sketch to Reality — Draw it. Live in it.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+
+<link rel="stylesheet" href="./style.css" />
+
+<!-- The 3D canvas lives underneath every UI screen -->
+<canvas id="scene"></canvas>
+
+<!-- ============================ TOP BARS ============================ -->
+<div id="topbar">
+  <button id="btn-keep-editing" class="corner-btn top-left hidden" title="Still need to work on it? Keep editing">
+    ✏️ Keep Editing
+  </button>
+  <button id="btn-judge" class="corner-btn top-right hidden" title="Ask the AI judge to score your art for coins">
+    🤖 AI Judge
+  </button>
+  <div id="coin-badge" class="hidden"><span class="coin">🪙</span><span id="coin-count">0</span></div>
+</div>
+
+<!-- ============================ MAIN MENU ============================ -->
+<section id="menu" class="screen">
+  <div class="menu-card">
+    <h1 class="logo">Sketch to <span>Reality</span></h1>
+    <p class="tagline">Draw anything in 3D — then step inside and live in it.</p>
+    <div class="menu-buttons">
+      <button class="big-btn primary" data-action="start">▶ Start Drawing</button>
+      <button class="big-btn" data-action="multiplayer">🌐 Draw with Friends</button>
+      <button class="big-btn" data-action="saves">💾 Saves</button>
+      <button class="big-btn" data-action="shop">🛒 Customisation Shop</button>
+      <button class="big-btn" data-action="friends">👥 Friends</button>
+    </div>
+    <div class="menu-foot">
+      <span class="coin">🪙</span> <b id="menu-coins">0</b> coins
+      <span id="menu-user" class="menu-user"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= COLOUR PICKER (start) ==================== -->
+<section id="color-screen" class="screen hidden">
+  <div class="menu-card">
+    <h2>Pick your colour</h2>
+    <p class="tagline">Choose any colour you want to draw with. You can change it anytime.</p>
+    <div id="color-swatches" class="swatches"></div>
+    <label class="custom-color">
+      Custom: <input type="color" id="custom-color-input" value="#4cc9f0" />
+    </label>
+    <div class="row-center">
+      <button class="big-btn primary" data-action="go-draw">Start Drawing →</button>
+      <button class="big-btn ghost" data-action="menu">← Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DRAW UI ============================ -->
+<section id="draw-ui" class="overlay hidden">
+  <!-- left tool dock -->
+  <div class="dock left-dock">
+    <div class="dock-title">Tools</div>
+    <div id="tool-list" class="tool-list"></div>
+    <div class="dock-title">Ink effect</div>
+    <select id="effect-select" class="dock-select"></select>
+    <div class="dock-title">Height <span id="height-val">1.0</span></div>
+    <input type="range" id="height-slider" min="0" max="6" step="0.25" value="1" />
+    <div class="dock-title">Brush size</div>
+    <input type="range" id="size-slider" min="0.05" max="0.6" step="0.01" value="0.14" />
+  </div>
+
+  <!-- colour dock -->
+  <div class="dock right-dock">
+    <div class="dock-title">Colour</div>
+    <div id="draw-swatches" class="swatches small"></div>
+    <input type="color" id="draw-color-input" value="#4cc9f0" />
+    <div class="dock-actions">
+      <button class="mini-btn" data-action="undo">↩ Undo</button>
+      <button class="mini-btn" data-action="clear">🗑 Clear</button>
+    </div>
+  </div>
+
+  <div id="draw-hint" class="draw-hint">
+    Left-drag = draw • Right-drag = orbit • Scroll = zoom
+  </div>
+</section>
+
+<!-- ============================ JUDGE PANEL ======================== -->
+<section id="judge-screen" class="screen hidden">
+  <div class="menu-card judge-card">
+    <h2 id="judge-title">🤖 AI Judge</h2>
+    <div id="judge-verdict" class="judge-verdict"></div>
+    <div id="judge-coins" class="judge-coins"></div>
+    <div class="judge-breakdown-title">Score breakdown</div>
+    <div id="judge-breakdown" class="judge-breakdown"></div>
+    <div class="row-center wrap">
+      <button class="big-btn primary" data-action="explore">🌍 Explore in Real Life</button>
+      <button class="big-btn" data-action="save">💾 Save</button>
+      <button class="big-btn ghost" data-action="keep-editing">✏️ Keep Editing</button>
+      <button class="big-btn ghost" data-action="menu">🏠 Menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SAVES ============================ -->
+<section id="saves-screen" class="screen hidden">
+  <div class="menu-card wide">
+    <h2>💾 Your Saves</h2>
+    <div id="saves-list" class="saves-list"></div>
+    <button class="big-btn ghost" data-action="menu">← Back to Menu</button>
+  </div>
+</section>
+
+<!-- ============================ SHOP ============================ -->
+<section id="shop-screen" class="screen hidden">
+  <div class="menu-card wide">
+    <h2>🛒 Customisation Shop</h2>
+    <p class="tagline">Earn coins from the AI Judge, then unlock fancier ink. Better effects cost more.</p>
+    <div class="shop-coins"><span class="coin">🪙</span> <b id="shop-coins">0</b></div>
+    <div id="shop-list" class="shop-list"></div>
+    <button class="big-btn ghost" data-action="menu">← Back to Menu</button>
+  </div>
+</section>
+
+<!-- ============================ FRIENDS ============================ -->
+<section id="friends-screen" class="screen hidden">
+  <div class="menu-card">
+    <h2>👥 Friends</h2>
+    <div id="friend-setup">
+      <p class="tagline">Make a username and choose your profile colour.</p>
+      <label class="field">Username <input id="username-input" maxlength="16" placeholder="e.g. artmaster" /></label>
+      <label class="field">Your colour <input type="color" id="profile-color-input" value="#4cc9f0" /></label>
+      <button class="big-btn primary" data-action="save-profile">Save Profile</button>
+    </div>
+    <div id="friend-add" class="hidden">
+      <div class="me-badge">You are <b id="me-name"></b> <span id="me-color" class="color-dot"></span></div>
+      <p class="tagline">Add a friend by username. Their colour must match yours to become friends!</p>
+      <label class="field">Friend's username <input id="friend-name-input" maxlength="16" placeholder="their username" /></label>
+      <label class="field">Their colour <input type="color" id="friend-color-input" value="#4cc9f0" /></label>
+      <button class="big-btn primary" data-action="add-friend">➕ Friend</button>
+      <div id="friend-msg" class="friend-msg"></div>
+      <div class="dock-title">Your friends</div>
+      <div id="friends-list" class="friends-list"></div>
+    </div>
+    <button class="big-btn ghost" data-action="menu">← Back to Menu</button>
+  </div>
+</section>
+
+<!-- ========================= MULTIPLAYER ROOMS ===================== -->
+<section id="mp-screen" class="screen hidden">
+  <div class="menu-card">
+    <h2>🌐 Draw with Friends</h2>
+    <p class="tagline">Draw together in real time, then explore your world together and see each other!</p>
+
+    <div id="mp-name-setup">
+      <label class="field">Your username <input id="mp-username" maxlength="16" placeholder="your name" /></label>
+      <label class="field">Your colour <input type="color" id="mp-color" value="#4cc9f0" /></label>
+    </div>
+
+    <div class="mp-choice">
+      <div class="mp-box">
+        <div class="mp-box-title">Host a room</div>
+        <p class="tagline">Create a room and invite a friend with the code or link.</p>
+        <button class="big-btn primary" data-action="mp-host">➕ Create Room</button>
+      </div>
+      <div class="mp-box">
+        <div class="mp-box-title">Join a room</div>
+        <label class="field">Room code <input id="mp-join-code" maxlength="8" placeholder="e.g. AB12C" style="text-transform:uppercase" /></label>
+        <button class="big-btn" data-action="mp-join">🔗 Join Room</button>
+      </div>
+    </div>
+
+    <div id="mp-room-info" class="mp-room-info hidden">
+      <div class="mp-code-label">Room code</div>
+      <div id="mp-room-code" class="mp-room-code">—</div>
+      <button class="mini-btn" data-action="mp-copy" style="max-width:220px;margin:0 auto">📋 Copy invite link</button>
+      <div id="mp-status" class="mp-status">Waiting for a friend to join…</div>
+      <button class="big-btn primary" data-action="mp-start" style="margin-top:14px">🎨 Start Drawing Together</button>
+    </div>
+
+    <div id="mp-msg" class="friend-msg"></div>
+    <button class="big-btn ghost" data-action="menu" style="margin-top:14px">← Back to Menu</button>
+  </div>
+</section>
+
+<!-- live roster shown during co-op draw / explore -->
+<div id="roster" class="roster hidden">
+  <div class="roster-title">🌐 <span id="roster-code"></span></div>
+  <div id="roster-list"></div>
+</div>
+
+<!-- ============================ EXPLORE HUD ======================== -->
+<section id="explore-hud" class="overlay hidden">
+  <div id="crosshair">+</div>
+  <div id="interact-hint" class="interact-hint hidden"></div>
+  <div id="explore-help" class="explore-help">
+    WASD / arrows = move • Mouse = look • Space = jump • E = sit / open door • Esc = release mouse
+  </div>
+  <button id="explore-menu-btn" class="corner-btn bottom-right">🏠 Exit</button>
+  <div id="click-to-play" class="click-to-play">🖱️ Click to look around</div>
+</section>
+
+<!-- toast -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- Vendored three.js (UMD global THREE) so the game works offline, no CDN. -->
+<script src="./vendor/three.min.js"></script>
+<!-- PeerJS for peer-to-peer multiplayer (free public signaling, no account). -->
+<script src="./vendor/peerjs.min.js"></script>
+<script src="./game.js"></script>
