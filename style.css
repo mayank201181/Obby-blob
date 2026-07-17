@@ -52,9 +52,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .menu-card h2 { margin: 0 0 6px; font-size: 26px; }
 
 .logo {
-  font-size: 62px;
+  font-size: 52px;
   margin: 0;
-  letter-spacing: -2px;
+  letter-spacing: -1.5px;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
   background-clip: text;
@@ -237,6 +237,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .friends-list { display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .friend-row { display: flex; align-items: center; gap: 10px; background: var(--panel-solid); border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 12px; }
 
+/* ------------------------- multiplayer ------------------------- */
+.mp-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.mp-box { background: var(--panel-solid); border: 1px solid var(--stroke); border-radius: 14px; padding: 14px; }
+.mp-box-title { font-weight: 700; margin-bottom: 4px; }
+.mp-room-info { margin-top: 16px; background: var(--panel-solid); border: 1px solid var(--stroke); border-radius: 14px; padding: 16px; }
+.mp-code-label { color: var(--muted); text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+.mp-room-code { font-size: 34px; font-weight: 800; letter-spacing: 4px; color: var(--accent); margin: 4px 0 10px; }
+.mp-status { color: var(--muted); margin-top: 10px; font-size: 14px; }
+.mp-status.live { color: var(--good); font-weight: 700; }
+
+.roster {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--stroke); border-radius: 12px;
+  padding: 8px 14px; z-index: 25; backdrop-filter: blur(8px); pointer-events: none;
+  max-width: 60vw;
+}
+.roster-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.roster-list { display: flex; gap: 12px; flex-wrap: wrap; }
+.roster-player { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.roster-player .color-dot { width: 12px; height: 12px; }
+
+@media (max-width: 640px) { .mp-choice { grid-template-columns: 1fr; } }
+
 /* ------------------------- explore hud ------------------------- */
 #crosshair {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -270,6 +293,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 
 @media (max-width: 640px) {
   .dock { width: 140px; padding: 10px; }
-  .logo { font-size: 46px; }
+  .logo { font-size: 40px; }
   .explore-help, .draw-hint { font-size: 11px; width: 92%; text-align: center; }
 }

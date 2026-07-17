@@ -1,8 +1,8 @@
-# 🎨 BlobWorld
+# 🎨 Sketch to Reality
 
 **Draw anything in 3D — then step inside and live in it.**
 
-BlobWorld is a browser game. You pick a colour, draw a house / a city / a chair /
+Sketch to Reality is a browser game. You pick a colour, draw a house / a city / a chair /
 anything you want in 3D, and when you press **Done** the AI Judge scores your art
 and pays you coins. Then you can **explore your drawing in first person** — walk
 around, sit on your chairs, open your doors, and go inside your houses. Spend the
@@ -63,6 +63,22 @@ Spend your coins on better ink — the good stuff costs more:
 | Rainbow Ink | 🪙 100 | ink cycles through every colour |
 | Gold Pack | 🪙 200 | luxury golden colours |
 | Glow Ink | 🪙 150 | ink glows in the dark |
+
+### 🌐 Draw with Friends (real-time multiplayer)
+Press **Draw with Friends** to build together live:
+1. Enter a username + colour.
+2. **Create Room** to get a room code, then **Copy invite link** and send it to a
+   friend (the link opens the game with the code pre-filled). Or your friend can
+   **Join a Room** by typing the code.
+3. Press **Start Drawing Together** — now whatever either of you draws appears for
+   both of you instantly, each in your own colour.
+4. When you **Explore**, you'll see each other walking around as little avatars
+   with name tags. 🧑‍🤝‍🧑
+
+> Multiplayer is peer-to-peer (via [PeerJS](https://peerjs.com)'s free public
+> signaling — no accounts or servers to run). Both players need to be online at
+> the same time and share the room code, and it works best on normal home
+> networks.
 
 ### Friends 👥
 Make a **username** and pick your profile **colour**. To friend someone, type

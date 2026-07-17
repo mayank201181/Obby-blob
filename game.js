@@ -1,5 +1,5 @@
 /* =========================================================================
-   BlobWorld — draw anything in 3D, then explore it in first person.
+   Sketch to Reality — draw anything in 3D, then explore it in first person.
    Single-page game. All state persists in localStorage.
    Uses the vendored global `THREE` (see index.html). No build step, no CDN.
    ========================================================================= */
@@ -300,7 +300,7 @@ function rebuildWorld() {
 }
 
 /* ============================ SCREEN ROUTER ============================ */
-const screens = ['menu','color-screen','draw-ui','judge-screen','saves-screen','shop-screen','friends-screen','explore-hud'];
+const screens = ['menu','color-screen','draw-ui','judge-screen','saves-screen','shop-screen','friends-screen','mp-screen','explore-hud'];
 let mode = 'menu';   // menu | draw | judge | explore | ...
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
@@ -331,6 +331,36 @@ function goMenu() {
   const u = document.getElementById('menu-user');
   u.textContent = data.profile ? `· 👤 ${data.profile.name}` : '';
   refreshCoins();
+  updateRoster();
+}
+
+/* ---- multiplayer screen ---- */
+function openMultiplayer() {
+  mode = 'mp';
+  show('mp-screen');
+  setTopbar({ coins: false });
+  grid.visible = false;
+  document.getElementById('mp-msg').textContent = '';
+  document.getElementById('mp-room-info').classList.add('hidden');
+  const nameIn = document.getElementById('mp-username');
+  const colIn = document.getElementById('mp-color');
+  if (data.profile) { nameIn.value = data.profile.name; colIn.value = data.profile.color; }
+  // deep link ?room=CODE
+  const params = new URLSearchParams(location.search);
+  const room = params.get('room');
+  if (room) document.getElementById('mp-join-code').value = room.toUpperCase();
+  updateRoster();
+}
+function mpCopyLink() {
+  const url = location.origin + location.pathname + '?room=' + net.roomCode;
+  const done = () => toast('Invite link copied! Send it to a friend 📋');
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => prompt('Copy this link:', url));
+  else prompt('Copy this link:', url);
+}
+function mpStart() {
+  if (!net.connected) { mpMsg('Create or join a room first.', false); return; }
+  currentSaveId = null;
+  enterDrawMode();
 }
 
 /* ============================ DRAW MODE ============================ */
@@ -359,6 +389,7 @@ function enterDrawMode() {
   buildColorSwatches(document.getElementById('draw-swatches'), true);
   document.getElementById('draw-color-input').value = editor.color;
   refreshCoins();
+  updateRoster();
 }
 
 function buildColorSwatches(container, small) {
@@ -436,8 +467,9 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (tool === 'erase') {
     const obj = pointerPickItem(ev);
     if (obj) {
-      const idx = world.items.indexOf(obj.userData.item);
-      if (idx >= 0) { world.items.splice(idx, 1); worldGroup.remove(obj); toast('Erased'); }
+      const item = obj.userData.item;
+      const idx = world.items.indexOf(item);
+      if (idx >= 0) { world.items.splice(idx, 1); worldGroup.remove(obj); netSend({ t: 'remove', id: item.id }); toast('Erased'); }
     }
     return;
   }
@@ -446,7 +478,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     if (!p) return;
     isDrawing = true;
     orbit.enabled = false;
-    const item = { type: 'brush', color: editor.color, effect: editor.effect, size: editor.size, points: [[p.x, p.y, p.z]] };
+    const item = { id: uid(), type: 'brush', color: editor.color, effect: editor.effect, size: editor.size, points: [[p.x, p.y, p.z]] };
     world.items.push(item);
     const mesh = buildItemMesh(item);
     worldGroup.add(mesh);
@@ -456,9 +488,10 @@ canvas.addEventListener('pointerdown', (ev) => {
     const p = pointerToPlane(ev);
     if (!p) return;
     const yBase = (tool === 'house' || tool === 'tree' || tool === 'door') ? 0 : editor.height;
-    const item = { type: tool, color: editor.color, effect: editor.effect, pos: [p.x, yBase, p.z], rot: 0 };
+    const item = { id: uid(), type: tool, color: editor.color, effect: editor.effect, pos: [p.x, yBase, p.z], rot: 0 };
     world.items.push(item);
     worldGroup.add(buildItemMesh(item));
+    netSend({ t: 'additem', item });
     toast(TOOLS.find(t => t.id === tool).label + ' placed');
   }
 });
@@ -477,7 +510,12 @@ canvas.addEventListener('pointermove', (ev) => {
   worldGroup.add(activeStroke.mesh);
 });
 function endStroke() {
-  if (isDrawing) { isDrawing = false; activeStroke = null; orbit.enabled = true; }
+  if (isDrawing) {
+    isDrawing = false;
+    if (activeStroke) netSend({ t: 'additem', item: activeStroke.item });
+    activeStroke = null;
+    orbit.enabled = true;
+  }
 }
 canvas.addEventListener('pointerup', endStroke);
 canvas.addEventListener('pointerleave', endStroke);
@@ -774,6 +812,12 @@ function enterExplore() {
   if (!box.isEmpty()) { box.getCenter(center); box.getSize(size); }
   const dist = Math.max(6, size.z / 2 + 5);
   player.pos.set(center.x, 1.6, center.z + dist);
+  // fan players out so co-op players don't spawn inside each other
+  if (net.connected) {
+    const ids = [...net.players.keys()].sort();
+    const idx = Math.max(0, ids.indexOf(net.me.id));
+    player.pos.x += (idx - (ids.length - 1) / 2) * 2.6;
+  }
   player.vel.set(0, 0, 0);
   player.sitting = null; player.onGround = false;
   const dir = new THREE.Vector3().subVectors(center, player.pos);
@@ -783,6 +827,7 @@ function enterExplore() {
   buildColliders();
   document.getElementById('click-to-play').classList.remove('hidden');
   document.getElementById('interact-hint').classList.add('hidden');
+  updateRoster();
 }
 function exitExplore() {
   if (document.pointerLockElement) document.exitPointerLock();
@@ -959,6 +1004,7 @@ function animate() {
   if (mode === 'draw' || mode === 'judge') orbit.update();
   if (mode === 'explore') {
     updatePlayer(dt);
+    netExploreTick(dt);
     fpCamera.position.copy(player.pos);
     const dir = new THREE.Vector3(
       -Math.sin(player.yaw) * Math.cos(player.pitch),
@@ -970,6 +1016,274 @@ function animate() {
   renderer.render(scene, activeCamera);
 }
 animate();
+
+/* ============================ MULTIPLAYER ============================ */
+// Peer-to-peer co-op using PeerJS (free public signaling server, no account).
+// Star topology: the host is the hub and relays messages between guests.
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function makeCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)];
+  return s;
+}
+const ID_PREFIX = 'sketch2reality-';
+// PeerJS options. window.__PEER_CONFIG lets tests point at a local signaling
+// server; in production it's undefined and PeerJS uses its free public cloud.
+function peerOpts() { return Object.assign({ debug: 1 }, window.__PEER_CONFIG || {}); }
+
+const net = {
+  peer: null, isHost: false, conns: [], hostConn: null,
+  roomCode: null, connected: false, ready: false,
+  me: { id: uid(), name: 'Player', color: '#4cc9f0' },
+  players: new Map(),   // id -> { name, color }
+  avatars: new Map(),   // id -> { group, target, targetYaw, last }
+  lastPos: 0,
+};
+
+function mpMsg(text, ok) {
+  const el = document.getElementById('mp-msg');
+  el.className = 'friend-msg ' + (ok ? 'ok' : 'bad');
+  el.textContent = text;
+}
+
+function netStartHost() {
+  if (typeof Peer === 'undefined') { mpMsg('Multiplayer library failed to load.', false); return; }
+  readMpProfile();
+  const code = makeCode();
+  net.roomCode = code; net.isHost = true;
+  net.players.clear();
+  net.players.set(net.me.id, { name: net.me.name, color: net.me.color });
+  cleanupPeer();
+  net.peer = new Peer(ID_PREFIX + code, peerOpts());
+  net.peer.on('open', () => {
+    net.connected = true;
+    document.getElementById('mp-room-info').classList.remove('hidden');
+    document.getElementById('mp-room-code').textContent = code;
+    document.getElementById('roster-code').textContent = 'Room ' + code;
+    updateRoster();
+    mpMsg('Room created! Share the code or link with a friend.', true);
+  });
+  net.peer.on('connection', conn => setupConn(conn, true));
+  net.peer.on('error', e => {
+    if (e.type === 'unavailable-id') { netStartHost(); } // code taken, try another
+    else mpMsg('Connection error: ' + e.type, false);
+  });
+}
+
+function netJoin(code) {
+  if (typeof Peer === 'undefined') { mpMsg('Multiplayer library failed to load.', false); return; }
+  if (!code) { mpMsg('Enter a room code first.', false); return; }
+  readMpProfile();
+  code = code.toUpperCase().trim();
+  net.roomCode = code; net.isHost = false;
+  net.players.clear();
+  net.players.set(net.me.id, { name: net.me.name, color: net.me.color });
+  cleanupPeer();
+  net.peer = new Peer(undefined, peerOpts());
+  net.peer.on('open', () => {
+    mpMsg('Connecting to room ' + code + '…', true);
+    const conn = net.peer.connect(ID_PREFIX + code, { reliable: true });
+    net.hostConn = conn;
+    setupConn(conn, false);
+  });
+  net.peer.on('error', e => {
+    if (e.type === 'peer-unavailable') mpMsg('No room found with code ' + code + '. Check the code.', false);
+    else mpMsg('Connection error: ' + e.type, false);
+  });
+}
+
+function setupConn(conn, incoming) {
+  conn.on('open', () => {
+    if (incoming) {
+      net.conns.push(conn);
+      // send our identity, the full world, and the roster
+      send(conn, { t: 'hello', id: net.me.id, name: net.me.name, color: net.me.color });
+      send(conn, { t: 'snapshot', items: world.items });
+    } else {
+      net.connected = true;
+      net.hostConn = conn;
+      send(conn, { t: 'hello', id: net.me.id, name: net.me.name, color: net.me.color });
+      document.getElementById('mp-room-info').classList.remove('hidden');
+      document.getElementById('mp-room-code').textContent = net.roomCode;
+      document.getElementById('roster-code').textContent = 'Room ' + net.roomCode;
+      document.getElementById('mp-status').textContent = 'Connected! Press Start to draw together.';
+      document.getElementById('mp-status').classList.add('live');
+      mpMsg('Joined room ' + net.roomCode + '! 🎉', true);
+      // guest auto-enters draw mode when host is drawing; but let them press Start
+    }
+    updateRoster();
+  });
+  conn.on('data', d => onNetMessage(d, conn));
+  conn.on('close', () => {
+    net.conns = net.conns.filter(c => c !== conn);
+    if (conn._appId) { net.players.delete(conn._appId); removeAvatar(conn._appId); }
+    if (net.isHost) broadcastRoster();
+    updateRoster();
+    if (!net.isHost) { toast('Disconnected from room'); }
+  });
+}
+
+function send(conn, msg) { try { conn.send(msg); } catch (e) {} }
+
+// Send to everyone. Host -> all guests. Guest -> host (host relays).
+function netSend(msg) {
+  if (!net.connected) return;
+  if (net.isHost) { for (const c of net.conns) send(c, msg); }
+  else if (net.hostConn && net.hostConn.open) send(net.hostConn, msg);
+}
+
+function onNetMessage(msg, fromConn) {
+  switch (msg.t) {
+    case 'hello':
+      if (fromConn) fromConn._appId = msg.id;
+      net.players.set(msg.id, { name: msg.name, color: msg.color });
+      if (net.isHost) broadcastRoster();
+      updateRoster();
+      break;
+    case 'roster':
+      net.players = new Map(msg.players.map(p => [p.id, { name: p.name, color: p.color }]));
+      updateRoster();
+      break;
+    case 'snapshot':
+      world.items = msg.items || [];
+      rebuildWorld();
+      if (mode === 'menu' || mode === 'mp') { /* stay until Start */ }
+      break;
+    case 'additem':
+      if (!world.items.some(i => i.id === msg.item.id)) {
+        world.items.push(msg.item);
+        worldGroup.add(buildItemMesh(msg.item));
+      }
+      break;
+    case 'remove': {
+      const idx = world.items.findIndex(i => i.id === msg.id);
+      if (idx >= 0) {
+        const item = world.items[idx];
+        const child = worldGroup.children.find(c => c.userData.item === item);
+        if (child) worldGroup.remove(child);
+        world.items.splice(idx, 1);
+      }
+      break;
+    }
+    case 'clear':
+      world.items = []; worldGroup.clear();
+      break;
+    case 'pos':
+      updatePeerAvatar(msg);
+      break;
+  }
+  // host relays peer messages to the other guests
+  if (net.isHost && fromConn) {
+    for (const c of net.conns) if (c !== fromConn) send(c, msg);
+  }
+}
+
+function broadcastRoster() {
+  const players = [...net.players.entries()].map(([id, p]) => ({ id, name: p.name, color: p.color }));
+  for (const c of net.conns) send(c, { t: 'roster', players });
+}
+
+function updateRoster() {
+  const box = document.getElementById('roster');
+  const list = document.getElementById('roster-list');
+  const showable = net.connected && (mode === 'draw' || mode === 'explore' || mode === 'judge');
+  box.classList.toggle('hidden', !showable || net.players.size === 0);
+  list.innerHTML = '';
+  for (const [id, p] of net.players) {
+    const el = document.createElement('div');
+    el.className = 'roster-player';
+    el.innerHTML = `<span class="color-dot" style="background:${p.color}"></span>${p.name}${id === net.me.id ? ' (you)' : ''}`;
+    list.appendChild(el);
+  }
+  // waiting status on host screen
+  const st = document.getElementById('mp-status');
+  if (st && net.isHost) {
+    const others = net.players.size - 1;
+    if (others > 0) { st.textContent = `${others} friend${others>1?'s':''} connected! 🎉`; st.classList.add('live'); }
+    else { st.textContent = 'Waiting for a friend to join…'; st.classList.remove('live'); }
+  }
+}
+
+function readMpProfile() {
+  const name = (document.getElementById('mp-username').value || '').trim() || (data.profile && data.profile.name) || 'Player';
+  const color = document.getElementById('mp-color').value || '#4cc9f0';
+  net.me.name = name; net.me.color = color;
+  editor.color = color; // draw in your own colour so contributions are distinct
+  net.players.set(net.me.id, { name, color });
+}
+
+function cleanupPeer() {
+  if (net.peer) { try { net.peer.destroy(); } catch (e) {} }
+  net.peer = null; net.conns = []; net.hostConn = null; net.connected = false;
+}
+function netLeave() {
+  cleanupPeer();
+  net.isHost = false; net.roomCode = null; net.players.clear();
+  for (const id of [...net.avatars.keys()]) removeAvatar(id);
+  updateRoster();
+}
+
+/* ---- avatars (see each other in explore) ---- */
+function makeNameSprite(text, color) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.font = 'bold 34px Segoe UI, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 8, 256, 48);
+  ctx.fillStyle = '#fff'; ctx.fillText(text, 128, 34);
+  const tex = new THREE.CanvasTexture(c);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  spr.scale.set(1.8, 0.45, 1); spr.position.y = 2.2;
+  return spr;
+}
+function makeAvatar(name, color) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.5, emissive: new THREE.Color(color), emissiveIntensity: 0.28 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.7, 6, 12), mat);
+  body.position.y = 0.85; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 14), mat);
+  head.position.y = 1.6; head.castShadow = true;
+  const eyeMat = new THREE.MeshStandardMaterial({ color: '#101020' });
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
+  eye.position.set(0.12, 1.66, 0.28);
+  const eye2 = eye.clone(); eye2.position.x = -0.12;
+  g.add(body, head, eye, eye2, makeNameSprite(name, color));
+  return g;
+}
+function updatePeerAvatar(msg) {
+  if (msg.id === net.me.id) return;
+  let a = net.avatars.get(msg.id);
+  if (!a) {
+    const p = net.players.get(msg.id) || { name: 'Player', color: '#ffffff' };
+    const group = makeAvatar(p.name, p.color);
+    scene.add(group);
+    a = { group, target: new THREE.Vector3(), targetYaw: 0, last: 0 };
+    net.avatars.set(msg.id, a);
+  }
+  a.target.set(msg.x, msg.y - 1.6, msg.z);
+  a.targetYaw = msg.yaw;
+  a.last = performance.now();
+}
+function removeAvatar(id) {
+  const a = net.avatars.get(id);
+  if (a) { scene.remove(a.group); net.avatars.delete(id); }
+}
+function netExploreTick(dt) {
+  // broadcast my position
+  const now = performance.now();
+  if (net.connected && now - net.lastPos > 66) {
+    net.lastPos = now;
+    netSend({ t: 'pos', id: net.me.id, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw });
+  }
+  // move avatars toward their targets; hide stale ones
+  for (const [id, a] of net.avatars) {
+    if (now - a.last > 2000) { a.group.visible = false; continue; }
+    a.group.visible = true;
+    a.group.position.lerp(a.target, Math.min(1, dt * 10));
+    a.group.rotation.y = a.targetYaw + Math.PI;
+  }
+}
 
 /* ============================ UI WIRING ============================ */
 document.addEventListener('click', (e) => {
@@ -983,6 +1297,11 @@ document.addEventListener('click', (e) => {
     case 'saves': openSaves(); break;
     case 'shop': openShop(); break;
     case 'friends': openFriends(); break;
+    case 'multiplayer': openMultiplayer(); break;
+    case 'mp-host': netStartHost(); break;
+    case 'mp-join': netJoin(document.getElementById('mp-join-code').value); break;
+    case 'mp-copy': mpCopyLink(); break;
+    case 'mp-start': mpStart(); break;
     case 'explore': enterExplore(); break;
     case 'save': doSave(); break;
     case 'keep-editing': enterDrawMode(); break;
@@ -1001,17 +1320,26 @@ function undo() {
   const item = world.items.pop();
   const child = worldGroup.children.find(c => c.userData.item === item);
   if (child) worldGroup.remove(child);
+  netSend({ t: 'remove', id: item.id });
   toast('Undone');
 }
 function clearAll() {
   if (!world.items.length) return;
-  world.items = []; worldGroup.clear(); toast('Cleared');
+  world.items = []; worldGroup.clear(); netSend({ t: 'clear' }); toast('Cleared');
 }
 
 /* small hooks for automated testing / debugging */
 window.__BW = {
   itemCount: () => world.items.length,
   playerPos: () => ({ x: player.pos.x, y: player.pos.y, z: player.pos.z }),
+  avatarCount: () => [...net.avatars.values()].filter(a => a.group.visible).length,
+  debug: () => ({
+    items: world.items.map(i => ({ type: i.type, color: i.color, pos: i.pos })),
+    avatars: [...net.avatars.entries()].map(([id, a]) => ({
+      id, color: (net.players.get(id) || {}).color, visible: a.group.visible,
+      pos: [a.group.position.x.toFixed(1), a.group.position.y.toFixed(1), a.group.position.z.toFixed(1)],
+    })),
+  }),
   goMenu,
 };
 

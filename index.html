@@ -1,6 +1,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>BlobWorld — Draw it. Live in it.</title>
+<title>Sketch to Reality — Draw it. Live in it.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
 
 <link rel="stylesheet" href="./style.css" />
@@ -22,10 +22,11 @@
 <!-- ============================ MAIN MENU ============================ -->
 <section id="menu" class="screen">
   <div class="menu-card">
-    <h1 class="logo">Blob<span>World</span></h1>
+    <h1 class="logo">Sketch to <span>Reality</span></h1>
     <p class="tagline">Draw anything in 3D — then step inside and live in it.</p>
     <div class="menu-buttons">
       <button class="big-btn primary" data-action="start">▶ Start Drawing</button>
+      <button class="big-btn" data-action="multiplayer">🌐 Draw with Friends</button>
       <button class="big-btn" data-action="saves">💾 Saves</button>
       <button class="big-btn" data-action="shop">🛒 Customisation Shop</button>
       <button class="big-btn" data-action="friends">👥 Friends</button>
@@ -126,7 +127,7 @@
     <h2>👥 Friends</h2>
     <div id="friend-setup">
       <p class="tagline">Make a username and choose your profile colour.</p>
-      <label class="field">Username <input id="username-input" maxlength="16" placeholder="e.g. blobmaster" /></label>
+      <label class="field">Username <input id="username-input" maxlength="16" placeholder="e.g. artmaster" /></label>
       <label class="field">Your colour <input type="color" id="profile-color-input" value="#4cc9f0" /></label>
       <button class="big-btn primary" data-action="save-profile">Save Profile</button>
     </div>
@@ -144,6 +145,49 @@
   </div>
 </section>
 
+<!-- ========================= MULTIPLAYER ROOMS ===================== -->
+<section id="mp-screen" class="screen hidden">
+  <div class="menu-card">
+    <h2>🌐 Draw with Friends</h2>
+    <p class="tagline">Draw together in real time, then explore your world together and see each other!</p>
+
+    <div id="mp-name-setup">
+      <label class="field">Your username <input id="mp-username" maxlength="16" placeholder="your name" /></label>
+      <label class="field">Your colour <input type="color" id="mp-color" value="#4cc9f0" /></label>
+    </div>
+
+    <div class="mp-choice">
+      <div class="mp-box">
+        <div class="mp-box-title">Host a room</div>
+        <p class="tagline">Create a room and invite a friend with the code or link.</p>
+        <button class="big-btn primary" data-action="mp-host">➕ Create Room</button>
+      </div>
+      <div class="mp-box">
+        <div class="mp-box-title">Join a room</div>
+        <label class="field">Room code <input id="mp-join-code" maxlength="8" placeholder="e.g. AB12C" style="text-transform:uppercase" /></label>
+        <button class="big-btn" data-action="mp-join">🔗 Join Room</button>
+      </div>
+    </div>
+
+    <div id="mp-room-info" class="mp-room-info hidden">
+      <div class="mp-code-label">Room code</div>
+      <div id="mp-room-code" class="mp-room-code">—</div>
+      <button class="mini-btn" data-action="mp-copy" style="max-width:220px;margin:0 auto">📋 Copy invite link</button>
+      <div id="mp-status" class="mp-status">Waiting for a friend to join…</div>
+      <button class="big-btn primary" data-action="mp-start" style="margin-top:14px">🎨 Start Drawing Together</button>
+    </div>
+
+    <div id="mp-msg" class="friend-msg"></div>
+    <button class="big-btn ghost" data-action="menu" style="margin-top:14px">← Back to Menu</button>
+  </div>
+</section>
+
+<!-- live roster shown during co-op draw / explore -->
+<div id="roster" class="roster hidden">
+  <div class="roster-title">🌐 <span id="roster-code"></span></div>
+  <div id="roster-list"></div>
+</div>
+
 <!-- ============================ EXPLORE HUD ======================== -->
 <section id="explore-hud" class="overlay hidden">
   <div id="crosshair">+</div>
@@ -160,4 +204,6 @@
 
 <!-- Vendored three.js (UMD global THREE) so the game works offline, no CDN. -->
 <script src="./vendor/three.min.js"></script>
+<!-- PeerJS for peer-to-peer multiplayer (free public signaling, no account). -->
+<script src="./vendor/peerjs.min.js"></script>
 <script src="./game.js"></script>
